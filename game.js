@@ -18,27 +18,24 @@ async function sbFetch(path, opts = {}) {
   return res.json();
 }
 
-// Bester Score pro Spieler wird behalten (Deduplizierung im JS)
-async function submitScore(name, score, infected, happiness, economy, days, difficulty) {
-  // Vorhandenen Score des Spielers prüfen
+// Bester Score pro Spieler wird behalten
+async function submitScore(name, score, infected, happiness, economy, days) {
   try {
     const existing = await sbFetch(`/pandemic_scores?name=eq.${encodeURIComponent(name)}&order=score.desc&limit=1`);
     if (existing && existing.length > 0) {
       if (score > existing[0].score) {
-        // Besseren Score updaten
         await sbFetch(`/pandemic_scores?name=eq.${encodeURIComponent(name)}`, {
           method: "PATCH",
           headers: { Prefer: "return=minimal" },
-          body: JSON.stringify({ score, infected, happiness, economy, days, difficulty }),
+          body: JSON.stringify({ score, infected, happiness, economy, days }),
         });
       }
-      return; // Schlechterer Score wird ignoriert
+      return;
     }
   } catch (_) {}
-  // Erster Eintrag
   await sbFetch("/pandemic_scores", {
     method: "POST",
-    body: JSON.stringify({ name, score, infected, happiness, economy, days, difficulty }),
+    body: JSON.stringify({ name, score, infected, happiness, economy, days }),
   });
 }
 
@@ -65,9 +62,9 @@ function goToLeaderboard(from) {
 
 // ── SCHWIERIGKEITSGRADE ───────────────────────────────────────────────────────
 const DIFFICULTY = {
-  leicht: { label: "Leicht", spread: 0.08, bonus: 0 },
-  mittel: { label: "Mittel", spread: 0.12, bonus: 10 },
-  schwer: { label: "Schwer", spread: 0.18, bonus: 20 },
+  leicht: { label: "Leicht", spread: 0.055, bonus: 0 },
+  mittel: { label: "Mittel", spread: 0.08,  bonus: 10 },
+  schwer: { label: "Schwer", spread: 0.13,  bonus: 20 },
 };
 let selectedDifficulty = "mittel";
 
@@ -75,12 +72,12 @@ let selectedDifficulty = "mittel";
 // cx/cy = Position auf der Karte (SVG 500×380)
 // angle = Winkel zur Karte-Mitte (für Pfeile)
 const NEIGHBORS = [
-  { id:"DK", name:"Dänemark",      flag:"🇩🇰", cx:248, cy:52,  baseInf:8,  spreadFactor:0.008 },
-  { id:"NL", name:"Niederl./Belg.",flag:"🇳🇱", cx:90,  cy:118, baseInf:12, spreadFactor:0.010 },
-  { id:"FR", name:"Frankreich",    flag:"🇫🇷", cx:82,  cy:245, baseInf:15, spreadFactor:0.012 },
-  { id:"CH", name:"Schweiz/Öst.",  flag:"🇨🇭", cx:195, cy:338, baseInf:6,  spreadFactor:0.007 },
-  { id:"CZ", name:"Tschechien",    flag:"🇨🇿", cx:358, cy:288, baseInf:10, spreadFactor:0.009 },
-  { id:"PL", name:"Polen",         flag:"🇵🇱", cx:400, cy:115, baseInf:13, spreadFactor:0.011 },
+  { id:"DK", name:"Dänemark",      flag:"🇩🇰", cx:248, cy:52,  baseInf:8,  spreadFactor:0.004 },
+  { id:"NL", name:"Niederl./Belg.",flag:"🇳🇱", cx:90,  cy:118, baseInf:12, spreadFactor:0.005 },
+  { id:"FR", name:"Frankreich",    flag:"🇫🇷", cx:82,  cy:245, baseInf:15, spreadFactor:0.006 },
+  { id:"CH", name:"Schweiz/Öst.",  flag:"🇨🇭", cx:195, cy:338, baseInf:6,  spreadFactor:0.003 },
+  { id:"CZ", name:"Tschechien",    flag:"🇨🇿", cx:358, cy:288, baseInf:10, spreadFactor:0.004 },
+  { id:"PL", name:"Polen",         flag:"🇵🇱", cx:400, cy:115, baseInf:13, spreadFactor:0.005 },
 ];
 // Deutschland-Karte-Zentrum
 const DE_CX = 240, DE_CY = 195;
@@ -90,91 +87,91 @@ const DE_PATH = "M 215 88 L 255 75 L 298 90 L 315 125 L 310 168 L 292 198 L 278 
 
 // ── MASSNAHMEN ────────────────────────────────────────────────────────────────
 const POLICIES = [
-  { id:"border_control", name:"🛂 Grenzkontrollen",      desc:"Internationalen Reiseverkehr einschränken. Nachbarländer können Deutschland weniger infizieren.",
+  { id:"border_control", name:"Grenzkontrollen",      desc:"Internationalen Reiseverkehr einschränken. Nachbarländer können Deutschland weniger infizieren.",
     effects:{ infectionRate:-0.08, economy:-0.08 },
     pillLabels:[{text:"−Nachbardruck",cls:"good"},{text:"−8% Wirtschaft",cls:"bad"}] },
-  { id:"mask_mandate",   name:"😷 Maskenpflicht",         desc:"Masken in öffentlichen Räumen und Verkehrsmitteln vorschreiben.",
+  { id:"mask_mandate",   name:"Maskenpflicht",         desc:"Masken in öffentlichen Räumen und Verkehrsmitteln vorschreiben.",
     effects:{ infectionRate:-0.10, happiness:-0.03 },
     pillLabels:[{text:"−10% Ausbreitung",cls:"good"},{text:"−3% Zufriedenheit",cls:"bad"}] },
-  { id:"lockdown",       name:"🔒 Lockdown",              desc:"Ausgangsbeschränkungen für alle. Sehr wirksam, aber kostspielig.",
+  { id:"lockdown",       name:"Lockdown",              desc:"Ausgangsbeschränkungen für alle. Sehr wirksam, aber kostspielig.",
     effects:{ infectionRate:-0.35, economy:-0.20, happiness:-0.12 },
     pillLabels:[{text:"−35% Ausbreitung",cls:"good"},{text:"−20% Wirtschaft",cls:"bad"},{text:"−12% Zufriedenheit",cls:"bad"}] },
-  { id:"vaccine",        name:"💉 Impfprogramm",          desc:"Impfstoffentwicklung finanzieren. Langsam, aber dauerhaft wirksam.",
+  { id:"vaccine",        name:"Impfprogramm",          desc:"Impfstoffentwicklung finanzieren. Langsam, aber dauerhaft wirksam.",
     effects:{ infectionRate:-0.05, economy:-0.05, vaccineProgress:true },
     pillLabels:[{text:"−5% Ausbreitung",cls:"good"},{text:"+Impffortschritt",cls:"neutral"},{text:"−5% Wirtschaft",cls:"bad"}] },
-  { id:"testing",        name:"🧪 Massentests",           desc:"Infizierte aufspüren und isolieren, bevor sie andere anstecken.",
+  { id:"testing",        name:"Massentests",           desc:"Infizierte aufspüren und isolieren, bevor sie andere anstecken.",
     effects:{ infectionRate:-0.12, economy:-0.04 },
     pillLabels:[{text:"−12% Ausbreitung",cls:"good"},{text:"−4% Wirtschaft",cls:"bad"}] },
-  { id:"stimulus",       name:"💶 Konjunkturpaket",       desc:"Staatliche Hilfen für Unternehmen und Bürger.",
+  { id:"stimulus",       name:"Konjunkturpaket",       desc:"Staatliche Hilfen für Unternehmen und Bürger.",
     effects:{ economy:0.10, happiness:0.05 },
     pillLabels:[{text:"+10% Wirtschaft",cls:"good"},{text:"+5% Zufriedenheit",cls:"good"}] },
-  { id:"public_info",    name:"📢 Informationskampagne",  desc:"Bevölkerung aufklären. Günstig und effektiv.",
+  { id:"public_info",    name:"Informationskampagne",  desc:"Bevölkerung über Hygiene und Symptome aufklären. Günstig und effektiv.",
     effects:{ infectionRate:-0.06, happiness:0.04 },
     pillLabels:[{text:"−6% Ausbreitung",cls:"good"},{text:"+4% Zufriedenheit",cls:"good"}] },
-  { id:"curfew",         name:"🌙 Ausgangssperre",        desc:"Bewegungsfreiheit ab 21 Uhr einschränken.",
+  { id:"curfew",         name:"Ausgangssperre",        desc:"Bewegungsfreiheit ab 21 Uhr einschränken.",
     effects:{ infectionRate:-0.08, happiness:-0.05 },
     pillLabels:[{text:"−8% Ausbreitung",cls:"good"},{text:"−5% Zufriedenheit",cls:"bad"}] },
-  { id:"school_close",   name:"🏫 Schulschließungen",     desc:"Schulen und Kitas schließen. Reduziert Kontakte bei Kindern stark.",
+  { id:"school_close",   name:"Schulschließungen",     desc:"Schulen und Kitas schließen. Reduziert Kontakte bei Kindern erheblich.",
     effects:{ infectionRate:-0.10, happiness:-0.07, economy:-0.05 },
     pillLabels:[{text:"−10% Ausbreitung",cls:"good"},{text:"−7% Zufriedenheit",cls:"bad"},{text:"−5% Wirtschaft",cls:"bad"}] },
-  { id:"contact_tracing",name:"📱 Kontaktverfolgung",     desc:"App zur Nachverfolgung von Infektionsketten.",
+  { id:"contact_tracing",name:"Kontaktverfolgung",     desc:"App zur Nachverfolgung von Infektionsketten einführen.",
     effects:{ infectionRate:-0.09, economy:-0.02 },
     pillLabels:[{text:"−9% Ausbreitung",cls:"good"},{text:"−2% Wirtschaft",cls:"bad"}] },
 ];
 
 // ── EREIGNISSE ────────────────────────────────────────────────────────────────
 const EVENTS = [
-  { day:8,  title:"🦠 Neue Variante entdeckt",    desc:"Eine ansteckendere Variante breitet sich in Nachbarländern aus — Infektionsdruck steigt.",
-    type:"red",   effect(s){ s.neighbors.forEach(n=>{ n.inf=Math.min(80,n.inf+15); }); } },
-  { day:18, title:"📰 Medienpanik",               desc:"Reißerische Schlagzeilen lassen das Vertrauen einbrechen.",
-    type:"red",   effect(s){ s.happiness=Math.max(0,s.happiness-8); } },
-  { day:30, title:"🏥 Krankenhäuser überlastet",  desc:"Notaufnahmen sind voll. Sterblichkeit steigt.",
-    type:"red",   condition:s=>s.infected>35, effect(s){ s.baseSpread+=0.03; } },
-  { day:35, title:"🤝 EU-Hilfspaket",             desc:"Europäische Partner schicken Nothilfe für die Wirtschaft.",
+  { day:8,  title:"Neue Variante entdeckt",    desc:"Eine ansteckendere Variante breitet sich in Nachbarländern aus. Der Infektionsdruck steigt.",
+    type:"red",   effect(s){ s.neighbors.forEach(n=>{ n.inf=Math.min(80,n.inf+12); }); } },
+  { day:18, title:"Medienpanik",               desc:"Reißerische Schlagzeilen lassen das Vertrauen in die Regierung einbrechen.",
+    type:"red",   effect(s){ s.happiness=Math.max(0,s.happiness-6); } },
+  { day:30, title:"Krankenhäuser überlastet",  desc:"Notaufnahmen sind voll. Die Sterblichkeit steigt deutlich an.",
+    type:"red",   condition:s=>s.infected>35, effect(s){ s.baseSpread+=0.02; } },
+  { day:35, title:"EU-Hilfspaket",             desc:"Europäische Partner schicken Nothilfe für die Wirtschaft.",
     type:"green", effect(s){ s.economy=Math.min(100,s.economy+12); } },
-  { day:42, title:"😤 Protestwelle",              desc:"Bürger protestieren gegen Maßnahmen. Befolgungsrate sinkt.",
+  { day:42, title:"Protestwelle",              desc:"Bürger protestieren gegen die Maßnahmen. Die Befolgungsrate sinkt spürbar.",
     type:"red",   condition:s=>s.activePolicies.has("lockdown"),
-    effect(s){ s.happiness=Math.max(0,s.happiness-14); s.baseSpread+=0.02; } },
-  { day:50, title:"🔬 Behandlungsdurchbruch",     desc:"Ein neues Medikament wird zugelassen. Ausbreitung verlangsamt sich.",
-    type:"green", effect(s){ s.baseSpread=Math.max(0.01,s.baseSpread-0.05); } },
-  { day:60, title:"✈️ Zweite Welle aus dem Ausland", desc:"Neue Variante kommt über Nachbarländer — Frankreich und Polen besonders betroffen.",
+    effect(s){ s.happiness=Math.max(0,s.happiness-10); s.baseSpread+=0.015; } },
+  { day:50, title:"Behandlungsdurchbruch",     desc:"Ein neues Medikament wird zugelassen. Die Ausbreitung verlangsamt sich.",
+    type:"green", effect(s){ s.baseSpread=Math.max(0.01,s.baseSpread-0.04); } },
+  { day:60, title:"Zweite Welle aus dem Ausland", desc:"Eine neue Variante kommt über Nachbarländer. Frankreich und Polen sind besonders betroffen.",
     type:"red",   condition:s=>!s.activePolicies.has("border_control"),
-    effect(s){ s.neighbors.find(n=>n.id==="FR").inf=Math.min(90,s.neighbors.find(n=>n.id==="FR").inf+25);
-               s.neighbors.find(n=>n.id==="PL").inf=Math.min(90,s.neighbors.find(n=>n.id==="PL").inf+20); } },
-  { day:68, title:"📉 Rezessionswarnung",         desc:"Ökonomen warnen vor langfristigem Schaden.",
-    type:"red",   condition:s=>s.economy<40, effect(s){ s.economy=Math.max(0,s.economy-8); } },
-  { day:75, title:"🌍 Internationale Solidarität",desc:"Weltweite Unterstützung hebt die Stimmung.",
+    effect(s){ s.neighbors.find(n=>n.id==="FR").inf=Math.min(90,s.neighbors.find(n=>n.id==="FR").inf+20);
+               s.neighbors.find(n=>n.id==="PL").inf=Math.min(90,s.neighbors.find(n=>n.id==="PL").inf+18); } },
+  { day:68, title:"Rezessionswarnung",         desc:"Ökonomen warnen vor langfristigem wirtschaftlichem Schaden.",
+    type:"red",   condition:s=>s.economy<40, effect(s){ s.economy=Math.max(0,s.economy-6); } },
+  { day:75, title:"Internationale Solidarität",desc:"Weltweite Unterstützung hebt die Stimmung in Deutschland.",
     type:"green", effect(s){ s.happiness=Math.min(100,s.happiness+8); } },
-  { day:82, title:"🧫 Mutiertes Virus",           desc:"Das Virus mutiert — Impfschutz wird teilweise umgangen.",
+  { day:82, title:"Mutiertes Virus",           desc:"Das Virus mutiert erneut. Der Impfschutz wird teilweise umgangen.",
     type:"red",   condition:s=>s.vaccineProgress>50,
-    effect(s){ s.vaccineProgress=Math.max(0,s.vaccineProgress-20); s.baseSpread+=0.02; } },
+    effect(s){ s.vaccineProgress=Math.max(0,s.vaccineProgress-15); s.baseSpread+=0.015; } },
 ];
 
 const NEWS = [
-  "Deutschland meldet Rekordzahlen bei Neuinfektionen…",
-  "Wissenschaftler fordern schnelleres Impftempo…",
-  "WHO warnt vor Pandemiemüdigkeit in der Bevölkerung…",
-  "Wirtschaft zeigt erste Erholungszeichen…",
-  "Neue Studie: Maskenpflicht senkt Ansteckungen um 40 %…",
-  "Nachbarland Frankreich verschärft Einreisekontrollen…",
-  "Berliner Krankenhäuser melden 95 % Auslastung…",
-  "Kanzler wendet sich in TV-Ansprache an die Nation…",
-  "Umfrage: 60 % der Deutschen befürworten strengere Maßnahmen…",
-  "Pflegepersonal am Limit — Streiks drohen…",
-  "Homeoffice wird für tausende Unternehmen dauerhaft…",
-  "Lieferketten durch Grenzkontrollen unter Druck…",
-  "Polen meldet starken Anstieg der Neuinfektionen…",
-  "Frankreich erwägt erneuten Lockdown…",
-  "Experten fordern einheitliche europäische Pandemiestrategie…",
+  "Deutschland meldet Rekordzahlen bei Neuinfektionen.",
+  "Wissenschaftler fordern schnelleres Impftempo.",
+  "WHO warnt vor Pandemiemüdigkeit in der Bevölkerung.",
+  "Wirtschaft zeigt erste Erholungszeichen.",
+  "Neue Studie: Maskenpflicht senkt Ansteckungen um 40 %.",
+  "Nachbarland Frankreich verschärft Einreisekontrollen.",
+  "Berliner Krankenhäuser melden 95 % Auslastung.",
+  "Kanzler wendet sich in TV-Ansprache an die Nation.",
+  "Umfrage: 60 % der Deutschen befürworten strengere Maßnahmen.",
+  "Pflegepersonal am Limit, Streiks werden befürchtet.",
+  "Homeoffice wird für tausende Unternehmen zur Dauerlösung.",
+  "Lieferketten durch Grenzkontrollen unter Druck.",
+  "Polen meldet starken Anstieg der Neuinfektionen.",
+  "Frankreich erwägt erneuten Lockdown.",
+  "Experten fordern einheitliche europäische Pandemiestrategie.",
 ];
 const TIPPS = [
-  "💡 Tipp: Grenzkontrollen früh aktivieren — Nachbarländer infizieren Deutschland direkt!",
-  "💡 Tipp: Kombination aus Massentests + Maskenpflicht ist sehr kosteneffizient.",
-  "💡 Tipp: Das Konjunkturpaket hilft, wenn die Wirtschaft unter 50 % fällt.",
-  "💡 Tipp: Das Impfprogramm braucht Zeit — starte es so früh wie möglich.",
-  "💡 Tipp: Lockdown nur als letztes Mittel — er kostet Wirtschaft und Zufriedenheit stark.",
-  "💡 Tipp: Schau auf die Nachbarländer — steigen deren Infektionen, droht Gefahr.",
-  "💡 Tipp: Informationskampagne ist die billigste Maßnahme mit gutem Effekt.",
+  "Tipp: Grenzkontrollen früh aktivieren. Nachbarländer infizieren Deutschland direkt!",
+  "Tipp: Die Kombination aus Massentests und Maskenpflicht ist sehr kosteneffizient.",
+  "Tipp: Das Konjunkturpaket hilft, wenn die Wirtschaft unter 50 % fällt.",
+  "Tipp: Das Impfprogramm braucht Zeit. Starte es so früh wie möglich.",
+  "Tipp: Den Lockdown nur als letztes Mittel einsetzen. Er kostet Wirtschaft und Zufriedenheit stark.",
+  "Tipp: Schau auf die Nachbarländer. Steigen deren Infektionen, droht bald Gefahr.",
+  "Tipp: Die Informationskampagne ist die günstigste Maßnahme mit gutem Effekt.",
 ];
 
 // ── SPIELZUSTAND ──────────────────────────────────────────────────────────────
@@ -491,7 +488,7 @@ function togglePolicy(pid) {
   const p = POLICIES.find(p => p.id === pid);
   if (state.activePolicies.has(pid)) {
     state.activePolicies.delete(pid);
-    showToast(`${p.name} aufgehoben`, "Maßnahme deaktiviert — Effekte kehren sich um.", "yellow");
+    showToast(`${p.name} aufgehoben`, "Maßnahme deaktiviert. Die Effekte kehren sich um.", "yellow");
   } else {
     state.activePolicies.add(pid);
     showToast(`${p.name} aktiviert`, p.desc, "green");
@@ -533,28 +530,27 @@ async function endGame(reason) {
   state.gameOver = true;
   clearInterval(tickTimer);
   const sc = getScore();
-  const grades = [[90,"S","Legendärer Krisenmanager! 🏅"],[75,"A","Hervorragende Reaktion! 🌟"],[60,"B","Solide Leistung 👍"],[45,"C","Verbesserungspotenzial 😐"],[0,"D","Krise eskaliert 😔"]];
+  const grades = [[90,"S","Legendärer Krisenmanager!"],[75,"A","Hervorragende Reaktion!"],[60,"B","Solide Leistung"],[45,"C","Verbesserungspotenzial"],[0,"D","Krise eskaliert"]];
   const [,grade,gradeLabel] = grades.find(([min])=>sc.total>=min);
-  const titles = { erfolg:"90 Tage überstanden! 🎉", niederlage:"Pandemie außer Kontrolle 🦠", wirtschaft:"Wirtschaftskollaps 📉" };
+  const titles = { erfolg:"90 Tage überstanden!", niederlage:"Pandemie außer Kontrolle", wirtschaft:"Wirtschaftskollaps" };
   const msgs   = { erfolg:"Du hast die gesamte 90-tägige Krisenphase überstanden. Deine Entscheidungen haben Millionen Leben beeinflusst.",
-    niederlage:"Das Virus hat sich zu weit verbreitet. Handle beim nächsten Mal früher und achte auf den Druck aus Nachbarländern.",
+    niederlage:"Das Virus hat sich zu weit verbreitet. Handle beim nächsten Mal früher und achte auf den Druck aus den Nachbarländern.",
     wirtschaft:"Die Wirtschaft ist kollabiert. Kombiniere wirtschaftsschonende Maßnahmen mit dem Konjunkturpaket." };
   el("end-title").textContent   = titles[reason];
   el("end-msg").textContent     = msgs[reason];
   el("final-score").textContent = sc.total;
-  el("score-grade").textContent = `Note: ${grade} — ${gradeLabel}`;
+  el("score-grade").textContent = `Note ${grade}: ${gradeLabel}`;
   el("score-grade").style.color = sc.total>=75?"#66bb6a":sc.total>=50?"#ffa726":"#ef5350";
   el("s-infected").textContent  = state.infected.toFixed(1)+" %";
   el("s-happiness").textContent = state.happiness.toFixed(1)+" %";
   el("s-economy").textContent   = state.economy.toFixed(1)+" %";
   el("s-days").textContent      = (state.day-1)+" / 90";
-  el("s-difficulty").textContent= DIFFICULTY[selectedDifficulty].label+(state.difficultyBonus?` (+${state.difficultyBonus} Bonus)`:"");
   el("s-i-pts").textContent     = `+${sc.i} Pkt.`;
   el("s-h-pts").textContent     = `+${sc.h} Pkt.`;
   el("s-e-pts").textContent     = `+${sc.e} Pkt.`;
   el("s-total").textContent     = `${sc.total} / 100`;
   showScreen("end-screen");
-  try { await submitScore(state.name,sc.total,+state.infected.toFixed(1),+state.happiness.toFixed(1),+state.economy.toFixed(1),state.day-1,DIFFICULTY[selectedDifficulty].label); }
+  try { await submitScore(state.name,sc.total,+state.infected.toFixed(1),+state.happiness.toFixed(1),+state.economy.toFixed(1),state.day-1); }
   catch(e){ console.warn("Punktestand konnte nicht gespeichert werden:",e.message); }
 }
 
@@ -569,9 +565,9 @@ async function showLeaderboard() {
       tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:24px;color:#7986a0">Noch keine Einträge. Sei der Erste!</td></tr>`; return;
     }
     tbody.innerHTML = rows.map((r,i)=>`<tr class="${r.name===state.name?"highlight":""}">
-      <td class="rank">#${i+1}</td><td>${esc(r.name||"—")}${r.name===state.name?" 👈":""}</td>
-      <td class="score-col">${r.score}</td><td>${r.infected??"—"} %</td>
-      <td>${r.days??"—"}</td><td style="color:#7986a0;font-size:0.78rem">${r.difficulty??"—"}</td></tr>`).join("");
+      <td class="rank">#${i+1}</td><td>${esc(r.name||"?")}${r.name===state.name?" 👈":""}</td>
+      <td class="score-col">${r.score}</td><td>${r.infected??"?"} %</td>
+      <td>${r.days??"?"}</td></tr>`).join("");
   } catch(e) {
     tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:24px;color:#ef5350">Rangliste konnte nicht geladen werden.<br><small style="color:#7986a0">Supabase-Tabelle prüfen!</small></td></tr>`;
   }
@@ -608,7 +604,7 @@ document.addEventListener("DOMContentLoaded", () => {
     rotateTicker(); rotateTipp();
     setInterval(rotateTicker, 5000);
     setInterval(rotateTipp, 15000);
-    showToast("🚨 Krise beginnt!", "Nachbarländer sind bereits infiziert — handle sofort!", "red");
+    showToast("Krise beginnt!", "Nachbarländer sind bereits infiziert. Handle sofort!", "red");
   };
 
   el("pause-btn").onclick        = togglePause;
