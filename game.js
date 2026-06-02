@@ -513,7 +513,9 @@ function togglePause() {
   paused = !paused;
   el("pause-btn").textContent = paused ? "▶ Weiter" : "⏸ Pause";
   el("pause-btn").classList.toggle("paused", paused);
-  el("pause-overlay").style.display = paused ? "flex" : "none";
+  const banner = el("pause-banner");
+  banner.style.display = paused ? "block" : "none";
+  banner.textContent = paused ? "⏸ Pausiert — Maßnahmen können trotzdem geändert werden" : "";
 }
 
 // ── GESCHWINDIGKEIT ───────────────────────────────────────────────────────────
@@ -607,8 +609,7 @@ document.addEventListener("DOMContentLoaded", () => {
     showToast("Krise beginnt!", "Nachbarländer sind bereits infiziert. Handle sofort!", "red");
   };
 
-  el("pause-btn").onclick        = togglePause;
-  el("resume-overlay-btn").onclick = togglePause;
+  el("pause-btn").onclick = togglePause;
   el("view-lb-start").onclick    = () => goToLeaderboard("start-screen");
   el("view-lb-end").onclick      = () => goToLeaderboard("end-screen");
   el("play-again-btn").onclick   = () => { clearInterval(tickTimer); showScreen("start-screen"); };
