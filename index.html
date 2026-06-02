@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stop the Spread — Pandemic Response Simulator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ══ START SCREEN ══════════════════════════════════════════════════════════ -->
+<div id="start-screen" class="screen">
+  <h1>🦠 Stop the Spread</h1>
+  <p class="subtitle">You are Germany's Crisis Minister. A new pandemic is spreading fast. Can you protect your people without collapsing the economy?</p>
+
+  <div class="scenario-box">
+    <strong>BREAKING:</strong> A novel pathogen has been detected in multiple countries.
+    Germany has confirmed its first 2% infection rate. The WHO urges immediate action.
+    You have <strong>90 days</strong> to manage the crisis.<br><br>
+    Your score depends on keeping infections low, citizens happy, and the economy stable.
+    Every decision has trade-offs — choose wisely.
+  </div>
+
+  <div class="name-input-wrap">
+    <label>Enter your name for the leaderboard:</label>
+    <input type="text" id="player-name" placeholder="Your name" maxlength="24" />
+  </div>
+
+  <button class="btn" id="start-btn">Start Crisis Response</button>
+  <button class="btn secondary" id="view-lb-start">🏆 Leaderboard</button>
+</div>
+
+<!-- ══ GAME SCREEN ════════════════════════════════════════════════════════════ -->
+<div id="game-screen" class="screen">
+
+  <div class="game-header">
+    <h2>🦠 Stop the Spread — Germany</h2>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span id="vaccine-progress" style="display:none;font-size:0.8rem;color:#66bb6a"></span>
+      <div class="speed-btns">
+        <button class="speed-btn active" data-speed="1">1×</button>
+        <button class="speed-btn" data-speed="2">2×</button>
+        <button class="speed-btn" data-speed="4">4×</button>
+      </div>
+    </div>
+    <div class="day-counter" id="day-counter">Day 1 / 90</div>
+  </div>
+
+  <div class="game-body">
+
+    <!-- LEFT: Map + Stats -->
+    <div class="map-area">
+
+      <div class="stats-bar">
+        <div class="stat-card infections">
+          <div class="label">🦠 Infected</div>
+          <div class="value" id="stat-infected">2.0%</div>
+          <div class="stat-bar-bg"><div class="stat-bar-fill" id="bar-infected" style="width:2%"></div></div>
+        </div>
+        <div class="stat-card happiness">
+          <div class="label">😊 Happiness</div>
+          <div class="value" id="stat-happiness">80.0%</div>
+          <div class="stat-bar-bg"><div class="stat-bar-fill" id="bar-happiness" style="width:80%"></div></div>
+        </div>
+        <div class="stat-card economy">
+          <div class="label">💶 Economy</div>
+          <div class="value" id="stat-economy">85.0%</div>
+          <div class="stat-bar-bg"><div class="stat-bar-fill" id="bar-economy" style="width:85%"></div></div>
+        </div>
+      </div>
+
+      <div class="map-container">
+        <svg id="world-map" viewBox="0 0 100 75" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+
+      <div class="news-ticker">
+        <span id="news-ticker-text">📡 Loading news feed…</span>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: Sidebar -->
+    <div class="sidebar">
+
+      <div class="sidebar-section">
+        <h3>Active Policies</h3>
+        <div class="active-policies" id="active-policies">
+          <span style="color:#7986a0;font-size:0.8rem">No active policies</span>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3>Events</h3>
+        <div id="events-container">
+          <span style="color:#7986a0;font-size:0.8rem">No events yet…</span>
+        </div>
+      </div>
+
+      <div class="sidebar-section" style="flex:1;overflow-y:auto">
+        <h3>Policy Decisions</h3>
+        <div class="policy-cards" id="policy-cards"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══ END SCREEN ════════════════════════════════════════════════════════════ -->
+<div id="end-screen" class="screen">
+  <h1 id="end-title">Game Over</h1>
+
+  <div class="final-score-box">
+    <div class="score-label">Final Score</div>
+    <div class="big-score" id="final-score">0</div>
+    <div class="score-label" style="margin-top:4px">out of 100</div>
+
+    <div class="score-breakdown">
+      <div class="score-row"><span>🦠 Infection Control (40pts)</span><span id="score-infection-pts">—</span></div>
+      <div class="score-row"><span>😊 Happiness (30pts)</span><span id="score-happiness-pts">—</span></div>
+      <div class="score-row"><span>💶 Economy (30pts)</span><span id="score-economy-pts">—</span></div>
+      <hr style="border-color:#1e3a5f;margin:8px 0">
+      <div class="score-row"><span>Final Infected</span><span id="final-infected">—</span></div>
+      <div class="score-row"><span>Happiness</span><span id="final-happiness">—</span></div>
+      <div class="score-row"><span>Economy</span><span id="final-economy">—</span></div>
+      <div class="score-row"><span>Days Survived</span><span id="final-days">—</span></div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+    <button class="btn" id="play-again-btn">Play Again</button>
+    <button class="btn secondary" id="view-lb-end">🏆 Leaderboard</button>
+  </div>
+</div>
+
+<!-- ══ LEADERBOARD SCREEN ════════════════════════════════════════════════════ -->
+<div id="leaderboard-screen" class="screen">
+  <h1>🏆 Global Leaderboard</h1>
+  <p style="color:#7986a0;font-size:0.85rem">Top crisis managers worldwide</p>
+
+  <table class="lb-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Name</th>
+        <th>Score</th>
+        <th>Infected</th>
+        <th>Days</th>
+      </tr>
+    </thead>
+    <tbody id="lb-tbody">
+      <tr><td colspan="5" class="loading-text" style="text-align:center;padding:20px">Loading…</td></tr>
+    </tbody>
+  </table>
+
+  <button class="btn secondary" id="back-to-end">← Back</button>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
