@@ -1,160 +1,175 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>Stop the Spread — Pandemic Simulator</title>
+  <title>Stopp die Ausbreitung — Pandemie-Simulator</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-<!-- ══ TOAST CONTAINER (global) ══ -->
 <div id="toast-container"></div>
 
-<!-- ══════════════════════════════════════════════════════════════════════════
-     START SCREEN
-════════════════════════════════════════════════════════════════════════════ -->
+<!-- ══ STARTBILDSCHIRM ══════════════════════════════════════════════════════ -->
 <div id="start-screen" class="screen">
-  <h1>🦠 Stop the Spread</h1>
+  <h1>🦠 Stopp die Ausbreitung</h1>
   <p class="subtitle">
-    You are Germany's Crisis Minister. A new pandemic is spreading fast.<br>
-    Can you protect your people without collapsing the economy?
+    Du bist Deutschlands Krisenminister. Ein neues Virus breitet sich rasant aus.<br>
+    Kannst du deine Bevölkerung schützen, ohne die Wirtschaft zu ruinieren?
   </p>
 
   <div class="scenario-box">
-    <strong>⚡ BREAKING NEWS:</strong> A novel pathogen has been detected in
-    multiple countries. Germany has confirmed its first cases — currently
-    <strong>2% of the population</strong> is infected. The WHO urges immediate action.<br><br>
-    You have <span class="days-highlight">90 days</span> to manage the crisis.
-    Every decision has trade-offs. Choose wisely — your score will be posted
-    to the global leaderboard.
+    <strong>⚡ EILMELDUNG:</strong> Ein neues Virus wurde in mehreren Ländern nachgewiesen.
+    Deutschland meldet erste Fälle — aktuell sind <strong>2 % der Bevölkerung</strong> infiziert.
+    Die WHO fordert sofortiges Handeln.<br><br>
+    Du hast <span class="days-highlight">90 Tage</span>, um die Krise zu bewältigen.
+    Jede Entscheidung hat Konsequenzen. Handle klug — dein Ergebnis wird in der
+    globalen Rangliste gespeichert.
   </div>
 
   <div class="how-to-play">
     <div class="how-card">
       <span class="icon">🦠</span>
-      <strong>Control Infections</strong>
-      Keep the infection rate below 80% or the game ends.
+      <strong>Infektionen kontrollieren</strong>
+      Halte die Infektionsrate unter 80 % — sonst ist das Spiel vorbei.
     </div>
     <div class="how-card">
       <span class="icon">😊</span>
-      <strong>Keep People Happy</strong>
-      Harsh measures hurt morale. Balance is key.
+      <strong>Bevölkerung zufrieden halten</strong>
+      Harte Maßnahmen senken die Stimmung. Balance ist alles.
     </div>
     <div class="how-card">
       <span class="icon">💶</span>
-      <strong>Protect Economy</strong>
-      Lockdowns cost money. Economy at 0% = game over.
+      <strong>Wirtschaft schützen</strong>
+      Lockdowns kosten Geld. Wirtschaft bei 0 % = Spielende.
+    </div>
+  </div>
+
+  <!-- Schwierigkeitsgrad -->
+  <div class="diff-section">
+    <div class="diff-label">Schwierigkeitsgrad:</div>
+    <div class="diff-buttons">
+      <button class="diff-btn" data-diff="leicht">😌 Leicht</button>
+      <button class="diff-btn active" data-diff="mittel">😤 Mittel</button>
+      <button class="diff-btn" data-diff="schwer">😰 Schwer<br><small>+20 Bonus-Pkt.</small></button>
     </div>
   </div>
 
   <div class="name-wrap">
-    <label for="player-name">Your name for the leaderboard:</label>
-    <input type="text" id="player-name" placeholder="Enter your name" maxlength="24" />
+    <label for="player-name">Dein Name für die Rangliste:</label>
+    <input type="text" id="player-name" placeholder="Name eingeben" maxlength="24" />
   </div>
 
   <div class="start-buttons">
-    <button class="btn" id="start-btn">🚀 Start Crisis Response</button>
-    <button class="btn ghost" id="view-lb-start">🏆 View Leaderboard</button>
+    <button class="btn" id="start-btn">🚀 Krise starten</button>
+    <button class="btn ghost" id="view-lb-start">🏆 Rangliste ansehen</button>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════════════════
-     GAME SCREEN
-════════════════════════════════════════════════════════════════════════════ -->
+<!-- ══ SPIELBILDSCHIRM ══════════════════════════════════════════════════════ -->
 <div id="game-screen" class="screen">
+
+  <!-- Pause-Overlay -->
+  <div id="pause-overlay" style="display:none">
+    <div class="pause-box">
+      <div style="font-size:2.5rem">⏸</div>
+      <div style="font-size:1.4rem;font-weight:800;margin:8px 0">Spiel pausiert</div>
+      <div style="color:#7986a0;font-size:0.9rem;margin-bottom:20px">Das Virus wartet… du nicht.</div>
+      <button class="btn" id="resume-overlay-btn">▶ Weiter spielen</button>
+    </div>
+  </div>
 
   <!-- Header -->
   <div class="game-header">
-    <h2>🦠 Stop the Spread</h2>
+    <h2>🦠 Stopp die Ausbreitung</h2>
 
-    <div id="status-badge" class="status-badge stable">📊 Stable</div>
+    <div id="status-badge" class="status-badge stable">📊 Stabil</div>
 
-    <div class="speed-btns">
-      <button class="speed-btn active" data-speed="1">1×</button>
-      <button class="speed-btn" data-speed="2">2×</button>
-      <button class="speed-btn" data-speed="4">4×</button>
+    <div class="header-controls">
+      <button class="pause-btn" id="pause-btn">⏸ Pause</button>
+      <div class="speed-btns">
+        <button class="speed-btn active" data-speed="1">1×</button>
+        <button class="speed-btn" data-speed="2">2×</button>
+        <button class="speed-btn" data-speed="4">4×</button>
+      </div>
     </div>
 
     <div class="day-info">
-      <div class="day-counter" id="day-counter">Day 1 / 90</div>
+      <div class="day-counter" id="day-counter">Tag 1 / 90</div>
       <div class="day-progress-bar">
         <div class="day-progress-fill" id="day-progress-fill" style="width:1%"></div>
       </div>
     </div>
   </div>
 
-  <!-- Body -->
+  <!-- Spielfeld -->
   <div class="game-body">
 
-    <!-- LEFT: Map + Stats -->
+    <!-- LINKS: Karte + Stats -->
     <div class="left-panel">
 
-      <!-- Stat cards -->
       <div class="stats-bar">
         <div class="stat-card infections">
-          <div class="label">🦠 Infected Population</div>
-          <div class="value" id="stat-infected">2.0%</div>
+          <div class="label">🦠 Infizierte</div>
+          <div class="value" id="stat-infected">2,0 %</div>
           <div class="stat-bar-bg"><div class="stat-bar-fill" id="bar-infected" style="width:2%"></div></div>
           <div class="stat-trend" id="trend-infected"></div>
         </div>
         <div class="stat-card happiness">
-          <div class="label">😊 Public Happiness</div>
-          <div class="value" id="stat-happiness">80.0%</div>
+          <div class="label">😊 Zufriedenheit</div>
+          <div class="value" id="stat-happiness">80,0 %</div>
           <div class="stat-bar-bg"><div class="stat-bar-fill" id="bar-happiness" style="width:80%"></div></div>
           <div class="stat-trend" id="trend-happiness"></div>
         </div>
         <div class="stat-card economy">
-          <div class="label">💶 Economy</div>
-          <div class="value" id="stat-economy">85.0%</div>
+          <div class="label">💶 Wirtschaft</div>
+          <div class="value" id="stat-economy">85,0 %</div>
           <div class="stat-bar-bg"><div class="stat-bar-fill" id="bar-economy" style="width:85%"></div></div>
           <div class="stat-trend" id="trend-economy"></div>
         </div>
       </div>
 
-      <!-- Map -->
+      <!-- Karte -->
       <div class="map-container">
         <svg id="world-map" viewBox="0 0 500 360" preserveAspectRatio="xMidYMid meet"></svg>
-        <div class="map-legend">
-          <span><span class="legend-dot" style="background:#2e7d32"></span>Low infection</span>
-          <span><span class="legend-dot" style="background:#e65100"></span>Medium</span>
-          <span><span class="legend-dot" style="background:#b71c1c"></span>High</span>
-        </div>
       </div>
 
-      <!-- Vaccine bar + news -->
-      <div id="vaccine-label" style="display:none;font-size:0.8rem;color:#66bb6a;text-align:center"></div>
-      <div class="news-ticker"><span id="news-text">📡 Loading news feed…</span></div>
+      <!-- Infektionsverlauf -->
+      <div class="chart-section">
+        <div class="chart-label">📈 Infektionsverlauf (letzte 30 Tage) <span style="color:#b71c1c;font-size:0.7rem">--- 80% Spielende</span></div>
+        <svg id="chart-svg" viewBox="0 0 300 60" preserveAspectRatio="none" style="width:100%;height:60px;display:block"></svg>
+      </div>
 
+      <!-- Impf + Ticker + Tipp -->
+      <div id="vaccine-label" style="display:none;font-size:0.82rem;color:#66bb6a;text-align:center;padding:2px 0"></div>
+      <div class="news-ticker"><span id="news-text">📡 Nachrichten werden geladen…</span></div>
+      <div class="tipp-bar"><span id="tipp-text"></span></div>
     </div>
 
-    <!-- RIGHT: Sidebar -->
+    <!-- RECHTS: Steuerleiste -->
     <div class="sidebar">
 
-      <!-- Score preview -->
       <div class="sidebar-section">
-        <h3>Current Score</h3>
+        <h3>Aktueller Punktestand</h3>
         <div class="score-preview">
-          <span class="sp-label">Projected Score</span>
+          <span class="sp-label">Vorschau Punkte</span>
           <span class="sp-val" id="score-preview-val">—</span>
         </div>
-        <div style="font-size:0.7rem;color:#7986a0;margin-top:6px;line-height:1.4">
-          Infections (40pts) + Happiness (30pts) + Economy (30pts)
+        <div style="font-size:0.7rem;color:#7986a0;margin-top:6px;line-height:1.5">
+          Infektionen (40 Pkt.) + Zufriedenheit (30 Pkt.) + Wirtschaft (30 Pkt.)
         </div>
       </div>
 
-      <!-- Active policies -->
       <div class="sidebar-section">
-        <h3>Active Policies</h3>
+        <h3>Aktive Maßnahmen</h3>
         <div class="active-policies" id="active-policies">
-          <span style="color:#7986a0;font-size:0.78rem">None active — tap a policy below</span>
+          <span style="color:#7986a0;font-size:0.78rem">Keine aktiven Maßnahmen</span>
         </div>
       </div>
 
-      <!-- Policy cards -->
       <div class="policy-scroll">
-        <div class="policy-label">Tap to toggle a policy on/off:</div>
+        <div class="policy-label">Maßnahme antippen zum Aktivieren / Deaktivieren:</div>
         <div id="policy-cards"></div>
       </div>
 
@@ -162,84 +177,58 @@
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════════════════
-     END SCREEN
-════════════════════════════════════════════════════════════════════════════ -->
+<!-- ══ ENDBILDSCHIRM ════════════════════════════════════════════════════════ -->
 <div id="end-screen" class="screen">
-  <h1 id="end-title">Game Over</h1>
+  <h1 id="end-title">Spielende</h1>
   <p class="result-msg" id="end-msg"></p>
 
   <div class="final-score-box">
-    <div class="score-label">Final Score</div>
+    <div class="score-label">Dein Ergebnis</div>
     <div class="big-score" id="final-score">0</div>
-    <div class="score-label">out of 100</div>
+    <div class="score-label">von 100 Punkten</div>
     <div class="score-grade" id="score-grade"></div>
 
     <div class="score-breakdown">
-      <div class="score-row">
-        <span>🦠 Infection Control</span>
-        <span id="s-infected">—</span>
-      </div>
-      <div class="score-row">
-        <span>😊 Happiness</span>
-        <span id="s-happiness">—</span>
-      </div>
-      <div class="score-row">
-        <span>💶 Economy</span>
-        <span id="s-economy">—</span>
-      </div>
-      <div class="score-row">
-        <span>📅 Days Survived</span>
-        <span id="s-days">—</span>
-      </div>
-      <div class="score-row">
-        <span>→ Infection pts</span>
-        <span id="s-i-pts">—</span>
-      </div>
-      <div class="score-row">
-        <span>→ Happiness pts</span>
-        <span id="s-h-pts">—</span>
-      </div>
-      <div class="score-row">
-        <span>→ Economy pts</span>
-        <span id="s-e-pts">—</span>
-      </div>
-      <div class="score-row total">
-        <span><strong>Total Score</strong></span>
-        <span id="s-total"><strong>—</strong></span>
-      </div>
+      <div class="score-row"><span>🦠 Infizierte am Ende</span><span id="s-infected">—</span></div>
+      <div class="score-row"><span>😊 Zufriedenheit</span><span id="s-happiness">—</span></div>
+      <div class="score-row"><span>💶 Wirtschaft</span><span id="s-economy">—</span></div>
+      <div class="score-row"><span>📅 Überlebte Tage</span><span id="s-days">—</span></div>
+      <div class="score-row"><span>🎮 Schwierigkeitsgrad</span><span id="s-difficulty">—</span></div>
+      <div class="score-row"><span>→ Infektions-Punkte</span><span id="s-i-pts">—</span></div>
+      <div class="score-row"><span>→ Zufriedenheits-Punkte</span><span id="s-h-pts">—</span></div>
+      <div class="score-row"><span>→ Wirtschafts-Punkte</span><span id="s-e-pts">—</span></div>
+      <div class="score-row total"><span><strong>Gesamtpunktzahl</strong></span><span id="s-total"><strong>—</strong></span></div>
     </div>
   </div>
 
   <div class="end-buttons">
-    <button class="btn" id="play-again-btn">🔄 Play Again</button>
-    <button class="btn secondary" id="view-lb-end">🏆 Leaderboard</button>
+    <button class="btn" id="play-again-btn">🔄 Nochmal spielen</button>
+    <button class="btn secondary" id="view-lb-end">🏆 Rangliste</button>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════════════════
-     LEADERBOARD SCREEN
-════════════════════════════════════════════════════════════════════════════ -->
+<!-- ══ RANGLISTE ════════════════════════════════════════════════════════════ -->
 <div id="leaderboard-screen" class="screen">
-  <h1>🏆 Global Leaderboard</h1>
-  <p style="color:#7986a0;font-size:0.85rem">Top crisis managers worldwide</p>
+  <h1>🏆 Weltrangliste</h1>
+  <p style="color:#7986a0;font-size:0.85rem">Die besten Krisenmanager weltweit</p>
 
   <table class="lb-table">
     <thead>
       <tr>
         <th>#</th>
         <th>Name</th>
-        <th>Score</th>
-        <th>Infected</th>
-        <th>Days</th>
+        <th>Punkte</th>
+        <th>Infiziert</th>
+        <th>Tage</th>
+        <th>Schwierigkeit</th>
       </tr>
     </thead>
     <tbody id="lb-tbody">
-      <tr><td colspan="5" style="text-align:center;padding:24px;color:#7986a0">Loading…</td></tr>
+      <tr><td colspan="6" style="text-align:center;padding:24px;color:#7986a0">Wird geladen…</td></tr>
     </tbody>
   </table>
 
-  <button class="btn ghost" id="back-lb-btn">← Back</button>
+  <button class="btn ghost" id="back-lb-btn">← Zurück</button>
 </div>
 
 <script src="game.js"></script>
