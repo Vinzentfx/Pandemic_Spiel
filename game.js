@@ -60,13 +60,8 @@ function goToLeaderboard(from) {
   showLeaderboard();
 }
 
-// ── SCHWIERIGKEITSGRADE ───────────────────────────────────────────────────────
-const DIFFICULTY = {
-  leicht: { label: "Leicht", spread: 0.055, bonus: 0 },
-  mittel: { label: "Mittel", spread: 0.08,  bonus: 10 },
-  schwer: { label: "Schwer", spread: 0.13,  bonus: 20 },
-};
-let selectedDifficulty = "mittel";
+// ── FESTE SPIELSCHWIERIGKEIT ──────────────────────────────────────────────────
+const BASE_SPREAD = 0.07; // alle spielen auf demselben Niveau
 
 // ── NACHBARLÄNDER (beeinflussen Deutschland aktiv!) ───────────────────────────
 // cx/cy = Position auf der Karte (SVG 500×380)
@@ -147,6 +142,169 @@ const EVENTS = [
     effect(s){ s.vaccineProgress=Math.max(0,s.vaccineProgress-15); s.baseSpread+=0.015; } },
 ];
 
+// ── ENTSCHEIDUNGS-EREIGNISSE (interaktiv, zufällig) ───────────────────────────
+const CHOICE_EVENTS = [
+  {
+    id: "pharma_deal",
+    title: "Pharmaunternehmen bietet Schnelltest an",
+    desc: "Ein internationales Unternehmen bietet eine große Lieferung Schnelltests an. Diese könnten die Ausbreitung stark einbremsen — der Preis ist allerdings sehr hoch.",
+    options: [
+      { label: "Kaufen", desc: "Teuer, aber sehr wirksam.", effects: { economy: -10, infected: -6 }, pills: [{text:"-6% Infizierte",cls:"good"},{text:"-10% Wirtschaft",cls:"bad"}] },
+      { label: "Verhandeln", desc: "Günstigerer Deal, kleinere Lieferung.", effects: { economy: -4, infected: -3 }, pills: [{text:"-3% Infizierte",cls:"good"},{text:"-4% Wirtschaft",cls:"bad"}] },
+      { label: "Ablehnen", desc: "Kein Geld ausgeben, Risiko bleibt.", effects: {}, pills: [{text:"Kein Effekt",cls:"neutral"}] },
+    ],
+  },
+  {
+    id: "concert",
+    title: "Großkonzert ist geplant",
+    desc: "Ein Veranstalter beantragt ein Konzert mit 50.000 Besuchern. Die Bevölkerung ist begeistert. Aber Massenansammlungen sind ein erhebliches Infektionsrisiko.",
+    options: [
+      { label: "Erlauben", desc: "Stimmung steigt, aber das Virus auch.", effects: { happiness: +12, infected: +8 }, pills: [{text:"+12% Zufriedenheit",cls:"good"},{text:"+8% Infizierte",cls:"bad"}] },
+      { label: "Begrenzte Kapazität", desc: "Halbe Auslastung als Kompromiss.", effects: { happiness: +5, infected: +3 }, pills: [{text:"+5% Zufriedenheit",cls:"good"},{text:"+3% Infizierte",cls:"bad"}] },
+      { label: "Absagen", desc: "Sicher, aber die Leute sind enttäuscht.", effects: { happiness: -8 }, pills: [{text:"-8% Zufriedenheit",cls:"bad"}] },
+    ],
+  },
+  {
+    id: "nurses_strike",
+    title: "Pflegepersonal droht mit Streik",
+    desc: "Krankenpfleger und Ärzte sind am Limit. Sie fordern bessere Bezahlung und mehr Personal. Ein Streik während der Pandemie wäre katastrophal.",
+    options: [
+      { label: "Forderungen erfüllen", desc: "Teuer, aber das System bleibt stabil.", effects: { economy: -12, happiness: +6 }, pills: [{text:"-12% Wirtschaft",cls:"bad"},{text:"+6% Zufriedenheit",cls:"good"}] },
+      { label: "Teilweise nachgeben", desc: "Kompromiss, der beide Seiten nicht ganz zufriedenstellt.", effects: { economy: -6, happiness: +2, baseSpread: +0.01 }, pills: [{text:"-6% Wirtschaft",cls:"bad"},{text:"+2% Zufriedenheit",cls:"good"}] },
+      { label: "Ablehnen", desc: "Streik! Krankenhäuser laufen auf Notbetrieb.", effects: { happiness: -14, baseSpread: +0.025 }, pills: [{text:"-14% Zufriedenheit",cls:"bad"},{text:"Ausbreitung steigt",cls:"bad"}] },
+    ],
+  },
+  {
+    id: "border_open",
+    title: "Nachbarland öffnet seine Grenzen",
+    desc: "Frankreich hebt alle Reisebeschränkungen auf und lädt deutsche Touristen ein. Wirtschaftlich attraktiv, aber das Infektionsrisiko aus dem Ausland steigt.",
+    options: [
+      { label: "Gegenseitig öffnen", desc: "Wirtschaft profitiert, Risiko steigt.", effects: { economy: +10, infected: +7 }, pills: [{text:"+10% Wirtschaft",cls:"good"},{text:"+7% Infizierte",cls:"bad"}] },
+      { label: "Testpflicht einführen", desc: "Geringeres Risiko, aber bürokratisch.", effects: { economy: +4, infected: +2 }, pills: [{text:"+4% Wirtschaft",cls:"good"},{text:"+2% Infizierte",cls:"bad"}] },
+      { label: "Grenzen geschlossen lassen", desc: "Sicher, aber wirtschaftlich nachteilig.", effects: { economy: -5 }, pills: [{text:"-5% Wirtschaft",cls:"bad"}] },
+    ],
+  },
+  {
+    id: "school_protest",
+    title: "Schülerprotest für Schulöffnung",
+    desc: "Tausende Schüler und Eltern protestieren vor dem Bundestag für eine sofortige Schulöffnung. Die Kinder leiden unter den langen Schließungen.",
+    options: [
+      { label: "Schulen sofort öffnen", desc: "Eltern und Kinder froh, Infektionsrate steigt.", effects: { happiness: +10, infected: +6 }, pills: [{text:"+10% Zufriedenheit",cls:"good"},{text:"+6% Infizierte",cls:"bad"}] },
+      { label: "Hybridmodell einführen", desc: "Halbe Klassen abwechselnd, moderates Risiko.", effects: { happiness: +4, infected: +2 }, pills: [{text:"+4% Zufriedenheit",cls:"good"},{text:"+2% Infizierte",cls:"bad"}] },
+      { label: "Schulen bleiben zu", desc: "Sicher, aber viele Familien sind frustriert.", effects: { happiness: -10 }, pills: [{text:"-10% Zufriedenheit",cls:"bad"}] },
+    ],
+  },
+  {
+    id: "hamster_buys",
+    title: "Hamsterkäufe leeren Supermärkte",
+    desc: "Panikkäufe führen zu leeren Regalen. Soziale Spannungen steigen. Soll die Regierung eingreifen?",
+    options: [
+      { label: "Kauflimits einführen", desc: "Regale füllen sich wieder, Stimmung gemischt.", effects: { happiness: -4, baseSpread: -0.005 }, pills: [{text:"-4% Zufriedenheit",cls:"bad"},{text:"Panik sinkt",cls:"good"}] },
+      { label: "Notvorräte verteilen", desc: "Teuer, beruhigt aber die Lage deutlich.", effects: { economy: -8, happiness: +8 }, pills: [{text:"-8% Wirtschaft",cls:"bad"},{text:"+8% Zufriedenheit",cls:"good"}] },
+      { label: "Nichts unternehmen", desc: "Lage eskaliert, Vertrauen sinkt.", effects: { happiness: -8 }, pills: [{text:"-8% Zufriedenheit",cls:"bad"}] },
+    ],
+  },
+  {
+    id: "who_recommendation",
+    title: "WHO empfiehlt sofortigen Lockdown",
+    desc: "Die Weltgesundheitsorganisation empfiehlt Deutschland dringend einen harten Lockdown. Die internationale Gemeinschaft schaut zu.",
+    options: [
+      { label: "Empfehlung befolgen", desc: "Infektionen sinken stark, Wirtschaft leidet.", effects: { infected: -12, economy: -15, happiness: -8 }, pills: [{text:"-12% Infizierte",cls:"good"},{text:"-15% Wirtschaft",cls:"bad"},{text:"-8% Zufriedenheit",cls:"bad"}] },
+      { label: "Teilweise umsetzen", desc: "Maßvoller Ansatz mit moderatem Effekt.", effects: { infected: -5, economy: -7, happiness: -4 }, pills: [{text:"-5% Infizierte",cls:"good"},{text:"-7% Wirtschaft",cls:"bad"}] },
+      { label: "Ignorieren", desc: "Deutschland geht seinen eigenen Weg.", effects: { happiness: +3 }, pills: [{text:"+3% Zufriedenheit",cls:"neutral"},{text:"Kein Schutz",cls:"bad"}] },
+    ],
+  },
+  {
+    id: "vaccine_early",
+    title: "Impfstofflieferung früher als geplant",
+    desc: "Ein Pharmaunternehmen kann früher liefern als erwartet. Wer bekommt die begrenzte Menge zuerst?",
+    options: [
+      { label: "Risikogruppen priorisieren", desc: "Sinnvoller Einsatz, gute Wirkung.", effects: { vaccineProgress: +20, happiness: +5 }, pills: [{text:"+20% Impffortschritt",cls:"good"},{text:"+5% Zufriedenheit",cls:"good"}] },
+      { label: "Alle gleichzeitig verteilen", desc: "Mehr Gerechtigkeit, aber weniger Wirkung.", effects: { vaccineProgress: +12, happiness: +8, economy: -4 }, pills: [{text:"+12% Impffortschritt",cls:"good"},{text:"+8% Zufriedenheit",cls:"good"},{text:"-4% Wirtschaft",cls:"bad"}] },
+      { label: "Für später lagern", desc: "Auf mehr Dosen warten.", effects: {}, pills: [{text:"Kein sofortiger Effekt",cls:"neutral"}] },
+    ],
+  },
+  {
+    id: "fake_news",
+    title: "Fake-News-Welle im Internet",
+    desc: "Falschinformationen über das Virus und den Impfstoff verbreiten sich rasant in sozialen Netzwerken. Impfskepsis und Regierungskritik nehmen zu.",
+    options: [
+      { label: "Aufklärungskampagne starten", desc: "Kostet Geld, erhöht aber das Vertrauen.", effects: { economy: -5, happiness: +7, baseSpread: -0.005 }, pills: [{text:"-5% Wirtschaft",cls:"bad"},{text:"+7% Zufriedenheit",cls:"good"}] },
+      { label: "Inhalte sperren lassen", desc: "Effektiv, aber Kritik an Zensur.", effects: { happiness: -5, baseSpread: -0.008 }, pills: [{text:"-5% Zufriedenheit",cls:"bad"},{text:"Ausbreitung sinkt",cls:"good"}] },
+      { label: "Ignorieren", desc: "Desinformation breitet sich weiter aus.", effects: { happiness: -10, baseSpread: +0.015 }, pills: [{text:"-10% Zufriedenheit",cls:"bad"},{text:"Ausbreitung steigt",cls:"bad"}] },
+    ],
+  },
+  {
+    id: "eu_summit",
+    title: "EU-Gipfel zur Pandemiebekämpfung",
+    desc: "Deutschland ist eingeladen, eine führende Rolle bei der europäischen Pandemiebekämpfung zu übernehmen. Das kostet Ressourcen, bringt aber auch internationale Unterstützung.",
+    options: [
+      { label: "Führungsrolle übernehmen", desc: "Kostspielig, aber EU hilft im Gegenzug.", effects: { economy: -8, happiness: +6, baseSpread: -0.008 }, pills: [{text:"-8% Wirtschaft",cls:"bad"},{text:"+6% Zufriedenheit",cls:"good"},{text:"Ausbreitung sinkt",cls:"good"}] },
+      { label: "Teilnehmen ohne Führung", desc: "Moderate Beteiligung.", effects: { economy: -3, happiness: +3 }, pills: [{text:"-3% Wirtschaft",cls:"bad"},{text:"+3% Zufriedenheit",cls:"good"}] },
+      { label: "Absagen", desc: "Deutschland konzentriert sich auf sich selbst.", effects: { happiness: -4 }, pills: [{text:"-4% Zufriedenheit",cls:"bad"}] },
+    ],
+  },
+];
+
+let activeChoiceEvent = null;
+
+function triggerChoiceEvent() {
+  const available = CHOICE_EVENTS.filter(e => !state.usedChoiceEvents.has(e.id));
+  if (available.length === 0) return;
+  const ev = available[Math.floor(Math.random() * available.length)];
+  state.usedChoiceEvents.add(ev.id);
+  activeChoiceEvent = ev;
+
+  // Spiel pausieren
+  paused = true;
+  el("pause-btn").textContent = "▶ Weiter";
+  el("pause-btn").classList.add("paused");
+  el("pause-banner").style.display = "none";
+
+  // Modal befüllen
+  el("choice-day").textContent = `Tag ${state.day} — Entscheidung gefordert`;
+  el("choice-title").textContent = ev.title;
+  el("choice-desc").textContent = ev.desc;
+
+  const btns = el("choice-buttons");
+  btns.innerHTML = "";
+  ev.options.forEach((opt, i) => {
+    const btn = document.createElement("div");
+    btn.className = "choice-opt";
+    btn.innerHTML = `
+      <div class="opt-label">${opt.label}</div>
+      <div style="font-size:0.78rem;color:#7986a0;margin-bottom:6px">${opt.desc}</div>
+      <div class="opt-effects">${opt.pills.map(p=>`<span class="opt-pill ${p.cls}">${p.text}</span>`).join("")}</div>`;
+    btn.onclick = () => applyChoice(opt);
+    btns.appendChild(btn);
+  });
+
+  el("choice-modal").style.display = "flex";
+
+  // Nächstes Ereignis planen (alle 8-15 Tage)
+  state.nextChoiceDay = state.day + 8 + Math.floor(Math.random() * 8);
+}
+
+function applyChoice(opt) {
+  el("choice-modal").style.display = "none";
+  activeChoiceEvent = null;
+
+  // Effekte anwenden
+  if (opt.effects.infected)      state.infected   = clamp(state.infected   + opt.effects.infected,  0, 100);
+  if (opt.effects.happiness)     state.happiness  = clamp(state.happiness  + opt.effects.happiness, 0, 100);
+  if (opt.effects.economy)       state.economy    = clamp(state.economy    + opt.effects.economy,   0, 100);
+  if (opt.effects.baseSpread)    state.baseSpread = Math.max(0.01, state.baseSpread + opt.effects.baseSpread);
+  if (opt.effects.vaccineProgress) state.vaccineProgress = Math.min(100, state.vaccineProgress + opt.effects.vaccineProgress);
+
+  showToast(`Entscheidung: ${opt.label}`, opt.desc, "green");
+
+  // Pause aufheben
+  paused = false;
+  el("pause-btn").textContent = "⏸ Pause";
+  el("pause-btn").classList.remove("paused");
+  renderGame();
+}
+
 const NEWS = [
   "Deutschland meldet Rekordzahlen bei Neuinfektionen.",
   "Wissenschaftler fordern schnelleres Impftempo.",
@@ -185,20 +343,19 @@ let lastInf     = 0, lastHap = 0, lastEco = 0;
 let infHistory  = [];
 
 function initState(name) {
-  const diff = DIFFICULTY[selectedDifficulty];
   return {
     name,
     day: 1,
     infected:  2,
     happiness: 80,
     economy:   85,
-    baseSpread: diff.spread,
-    difficultyBonus: diff.bonus,
+    baseSpread: BASE_SPREAD,
     vaccineProgress: 0,
     activePolicies: new Set(),
     triggeredEvents: new Set(),
     gameOver: false,
-    // Nachbarländer mit eigenem Infektionsstand
+    nextChoiceDay: 10 + Math.floor(Math.random() * 6), // erstes Ereignis zw. Tag 10-15
+    usedChoiceEvents: new Set(),
     neighbors: NEIGHBORS.map(n => ({ ...n, inf: n.baseInf })),
   };
 }
@@ -263,6 +420,9 @@ function tick() {
   if (state.economy   <= 0) { endGame("wirtschaft");  return; }
   if (state.day > 90)       { endGame("erfolg");      return; }
 
+  // Zufälliges Entscheidungs-Ereignis auslösen?
+  if (state.day >= state.nextChoiceDay) triggerChoiceEvent();
+
   renderGame();
 }
 
@@ -289,7 +449,7 @@ function getScore() {
   const i = Math.round((1 - state.infected  / 100) * 40);
   const h = Math.round((state.happiness / 100) * 30);
   const e = Math.round((state.economy   / 100) * 30);
-  return { i, h, e, total: i + h + e + state.difficultyBonus };
+  return { i, h, e, total: i + h + e };
 }
 function trendArrow(cur, prev) {
   const d = cur - prev;
@@ -586,10 +746,6 @@ function esc(s) { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>
 // ── START ─────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   showScreen("start-screen");
-
-  document.querySelectorAll(".diff-btn").forEach(btn => {
-    btn.onclick = () => { document.querySelectorAll(".diff-btn").forEach(b=>b.classList.remove("active")); btn.classList.add("active"); selectedDifficulty=btn.dataset.diff; };
-  });
 
   el("start-btn").onclick = () => {
     const name = el("player-name").value.trim() || "Anonym";
