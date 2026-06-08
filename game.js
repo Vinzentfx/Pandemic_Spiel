@@ -289,12 +289,13 @@ function applyChoice(opt) {
   el("choice-modal").style.display = "none";
   activeChoiceEvent = null;
 
-  // Effekte anwenden
-  if (opt.effects.infected)      state.infected   = clamp(state.infected   + opt.effects.infected,  0, 100);
-  if (opt.effects.happiness)     state.happiness  = clamp(state.happiness  + opt.effects.happiness, 0, 100);
-  if (opt.effects.economy)       state.economy    = clamp(state.economy    + opt.effects.economy,   0, 100);
-  if (opt.effects.baseSpread)    state.baseSpread = Math.max(0.01, state.baseSpread + opt.effects.baseSpread);
-  if (opt.effects.vaccineProgress) state.vaccineProgress = Math.min(100, state.vaccineProgress + opt.effects.vaccineProgress);
+  // Effekte anwenden (hasOwnProperty damit Wert 0 nicht als falsy gilt)
+  const fx = opt.effects;
+  if ("infected"       in fx) state.infected        = clamp(state.infected        + fx.infected,        0, 100);
+  if ("happiness"      in fx) state.happiness       = clamp(state.happiness       + fx.happiness,       0, 100);
+  if ("economy"        in fx) state.economy         = clamp(state.economy         + fx.economy,         0, 100);
+  if ("baseSpread"     in fx) state.baseSpread      = Math.max(0.01, state.baseSpread + fx.baseSpread);
+  if ("vaccineProgress"in fx) state.vaccineProgress = Math.min(100, state.vaccineProgress + fx.vaccineProgress);
 
   showToast(`Entscheidung: ${opt.label}`, opt.desc, "green");
 
@@ -394,14 +395,22 @@ function tick() {
   }
 
   spreadMod += -(state.vaccineProgress / 100) * 0.20;
-  if (!state.activePolicies.has("lockdown") && !borderActive) ecoMod += 0.018;
+  const costlyActive = ["lockdown","border_control","vaccine","school_close"]
+    .some(id => state.activePolicies.has(id));
+  // Glück steigt etwas wenn Infektionen niedrig sind
   if (state.infected < 20) hapMod += 0.015;
   if (state.infected > 50) hapMod -= 0.03;
 
+  // Immer eine kleine passive Wirtschaftserholung (auch mit Maßnahmen)
+  ecoMod += 0.010;
+  // Extra Erholung ohne kostenintensive Maßnahmen
+  if (!costlyActive) ecoMod += 0.012;
+
   const netSpread = Math.max(0.002, state.baseSpread + spreadMod);
+  // Scaling: 0.06 für Eco/Hap statt 0.28 — sonst crashed Economy bei vernünftigen Maßnahmen in <30 Tagen
   state.infected  = clamp(state.infected  + (netSpread * 100 * 0.14) + (neighborPressure * 100), 0, 100);
-  state.economy   = clamp(state.economy   + ecoMod * 100 * 0.28, 0, 100);
-  state.happiness = clamp(state.happiness + hapMod * 100 * 0.28, 0, 100);
+  state.economy   = clamp(state.economy   + ecoMod * 100 * 0.06, 0, 100);
+  state.happiness = clamp(state.happiness + hapMod * 100 * 0.08, 0, 100);
 
   infHistory.push(+state.infected.toFixed(1));
   if (infHistory.length > 30) infHistory.shift();
@@ -416,12 +425,13 @@ function tick() {
   }
 
   state.day++;
+
+  // Zufälliges Entscheidungs-Ereignis vor dem Spielende-Check — damit kein Event verschluckt wird
+  if (!state.gameOver && state.day >= state.nextChoiceDay && state.day <= 88) triggerChoiceEvent();
+
   if (state.infected >= 80) { endGame("niederlage");  return; }
   if (state.economy   <= 0) { endGame("wirtschaft");  return; }
   if (state.day > 90)       { endGame("erfolg");      return; }
-
-  // Zufälliges Entscheidungs-Ereignis auslösen?
-  if (state.day >= state.nextChoiceDay) triggerChoiceEvent();
 
   renderGame();
 }
