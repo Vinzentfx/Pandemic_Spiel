@@ -61,7 +61,9 @@ function goToLeaderboard(from) {
 }
 
 // ── FESTE SPIELSCHWIERIGKEIT ──────────────────────────────────────────────────
-const BASE_SPREAD = 0.07; // alle spielen auf demselben Niveau
+const BASE_SPREAD  = 0.10;  // Grundausbreitung pro Tag
+const FLOOR_NORMAL = 0.012; // minimale Ausbreitung ohne Lockdown/Impfschutz
+const FLOOR_LOW    = 0.003; // minimale Ausbreitung mit Lockdown oder vollständiger Impfung
 
 // ── NACHBARLÄNDER (beeinflussen Deutschland aktiv!) ───────────────────────────
 // cx/cy = Position auf der Karte (SVG 500×380)
@@ -81,37 +83,50 @@ const DE_CX = 240, DE_CY = 195;
 const DE_PATH = "M 215 88 L 255 75 L 298 90 L 315 125 L 310 168 L 292 198 L 278 232 L 248 242 L 215 228 L 192 198 L 182 158 L 192 120 Z";
 
 // ── MASSNAHMEN ────────────────────────────────────────────────────────────────
+// 7 klar differenzierte Maßnahmen — jede mit einer eindeutigen Rolle
 const POLICIES = [
-  { id:"border_control", name:"Grenzkontrollen",      desc:"Internationalen Reiseverkehr einschränken. Nachbarländer können Deutschland weniger infizieren.",
-    effects:{ infectionRate:-0.08, economy:-0.08 },
-    pillLabels:[{text:"−Nachbardruck",cls:"good"},{text:"−8% Wirtschaft",cls:"bad"}] },
-  { id:"mask_mandate",   name:"Maskenpflicht",         desc:"Masken in öffentlichen Räumen und Verkehrsmitteln vorschreiben.",
-    effects:{ infectionRate:-0.10, happiness:-0.03 },
-    pillLabels:[{text:"−10% Ausbreitung",cls:"good"},{text:"−3% Zufriedenheit",cls:"bad"}] },
-  { id:"lockdown",       name:"Lockdown",              desc:"Ausgangsbeschränkungen für alle. Sehr wirksam, aber kostspielig.",
-    effects:{ infectionRate:-0.35, economy:-0.20, happiness:-0.12 },
-    pillLabels:[{text:"−35% Ausbreitung",cls:"good"},{text:"−20% Wirtschaft",cls:"bad"},{text:"−12% Zufriedenheit",cls:"bad"}] },
-  { id:"vaccine",        name:"Impfprogramm",          desc:"Impfstoffentwicklung finanzieren. Langsam, aber dauerhaft wirksam.",
-    effects:{ infectionRate:-0.05, economy:-0.05, vaccineProgress:true },
-    pillLabels:[{text:"−5% Ausbreitung",cls:"good"},{text:"+Impffortschritt",cls:"neutral"},{text:"−5% Wirtschaft",cls:"bad"}] },
-  { id:"testing",        name:"Massentests",           desc:"Infizierte aufspüren und isolieren, bevor sie andere anstecken.",
-    effects:{ infectionRate:-0.12, economy:-0.04 },
-    pillLabels:[{text:"−12% Ausbreitung",cls:"good"},{text:"−4% Wirtschaft",cls:"bad"}] },
-  { id:"stimulus",       name:"Konjunkturpaket",       desc:"Staatliche Hilfen für Unternehmen und Bürger.",
-    effects:{ economy:0.10, happiness:0.05 },
-    pillLabels:[{text:"+10% Wirtschaft",cls:"good"},{text:"+5% Zufriedenheit",cls:"good"}] },
-  { id:"public_info",    name:"Informationskampagne",  desc:"Bevölkerung über Hygiene und Symptome aufklären. Günstig und effektiv.",
-    effects:{ infectionRate:-0.06, happiness:0.04 },
-    pillLabels:[{text:"−6% Ausbreitung",cls:"good"},{text:"+4% Zufriedenheit",cls:"good"}] },
-  { id:"curfew",         name:"Ausgangssperre",        desc:"Bewegungsfreiheit ab 21 Uhr einschränken.",
-    effects:{ infectionRate:-0.08, happiness:-0.05 },
-    pillLabels:[{text:"−8% Ausbreitung",cls:"good"},{text:"−5% Zufriedenheit",cls:"bad"}] },
-  { id:"school_close",   name:"Schulschließungen",     desc:"Schulen und Kitas schließen. Reduziert Kontakte bei Kindern erheblich.",
-    effects:{ infectionRate:-0.10, happiness:-0.07, economy:-0.05 },
-    pillLabels:[{text:"−10% Ausbreitung",cls:"good"},{text:"−7% Zufriedenheit",cls:"bad"},{text:"−5% Wirtschaft",cls:"bad"}] },
-  { id:"contact_tracing",name:"Kontaktverfolgung",     desc:"App zur Nachverfolgung von Infektionsketten einführen.",
-    effects:{ infectionRate:-0.09, economy:-0.02 },
-    pillLabels:[{text:"−9% Ausbreitung",cls:"good"},{text:"−2% Wirtschaft",cls:"bad"}] },
+  {
+    id:"public_info", name:"Informationskampagne",
+    desc:"Bevölkerung über Symptome und Hygiene aufklären. Kein Wirtschaftsschaden, hebt die Stimmung.",
+    effects:{ infectionRate:-0.05, happiness:0.05 },
+    pillLabels:[{text:"−5% Ausbreitung",cls:"good"},{text:"+5% Zufriedenheit",cls:"good"}],
+  },
+  {
+    id:"mask_mandate", name:"Maskenpflicht",
+    desc:"Masken in öffentlichen Räumen und Verkehrsmitteln. Wirksam und günstig.",
+    effects:{ infectionRate:-0.11, happiness:-0.03 },
+    pillLabels:[{text:"−11% Ausbreitung",cls:"good"},{text:"−3% Zufriedenheit",cls:"bad"}],
+  },
+  {
+    id:"testing", name:"Massentests",
+    desc:"Infizierte frühzeitig aufspüren und isolieren. Stärkstes Mittel gegen Ausbreitung, belastet aber die Kasse.",
+    effects:{ infectionRate:-0.14, economy:-0.05 },
+    pillLabels:[{text:"−14% Ausbreitung",cls:"good"},{text:"−5% Wirtschaft",cls:"bad"}],
+  },
+  {
+    id:"border_control", name:"Grenzkontrollen",
+    desc:"Internationalen Reiseverkehr stark einschränken. Hält eingeschleppte Fälle aus Nachbarländern fern.",
+    effects:{ economy:-0.06 },
+    pillLabels:[{text:"−85% Nachbardruck",cls:"good"},{text:"−6% Wirtschaft",cls:"bad"}],
+  },
+  {
+    id:"stimulus", name:"Konjunkturpaket",
+    desc:"Staatliche Hilfen für Unternehmen und Bürger. Stabilisiert Wirtschaft und Stimmung.",
+    effects:{ economy:0.12, happiness:0.06 },
+    pillLabels:[{text:"+12% Wirtschaft",cls:"good"},{text:"+6% Zufriedenheit",cls:"good"}],
+  },
+  {
+    id:"vaccine", name:"Impfprogramm",
+    desc:"Impfstoffentwicklung und Verteilung finanzieren. Baut dauerhaften Schutz auf — bei 100% sinkt die Ausbreitung stark.",
+    effects:{ economy:-0.03, vaccineProgress:true },
+    pillLabels:[{text:"+Impffortschritt",cls:"good"},{text:"Bei 100%: Min-Ausbreitung↓",cls:"neutral"},{text:"−3% Wirtschaft",cls:"bad"}],
+  },
+  {
+    id:"lockdown", name:"Lockdown",
+    desc:"Harte Ausgangsbeschränkungen. Einzige Maßnahme, die die Ausbreitung unter die normale Untergrenze drückt — aber sehr kostspielig.",
+    effects:{ infectionRate:-0.25, economy:-0.10, happiness:-0.08 },
+    pillLabels:[{text:"−25% Ausbreitung",cls:"good"},{text:"Untergrenze ↓",cls:"neutral"},{text:"−10% Wirtschaft",cls:"bad"},{text:"−8% Zufriedenheit",cls:"bad"}],
+  },
 ];
 
 // ── EREIGNISSE ────────────────────────────────────────────────────────────────
@@ -128,7 +143,7 @@ const EVENTS = [
     type:"red",   condition:s=>s.activePolicies.has("lockdown"),
     effect(s){ s.happiness=Math.max(0,s.happiness-10); s.baseSpread+=0.015; } },
   { day:50, title:"Behandlungsdurchbruch",     desc:"Ein neues Medikament wird zugelassen. Die Ausbreitung verlangsamt sich.",
-    type:"green", effect(s){ s.baseSpread=Math.max(0.01,s.baseSpread-0.04); } },
+    type:"green", effect(s){ s.baseSpread=Math.max(0.04,s.baseSpread-0.04); } },
   { day:60, title:"Zweite Welle aus dem Ausland", desc:"Eine neue Variante kommt über Nachbarländer. Frankreich und Polen sind besonders betroffen.",
     type:"red",   condition:s=>!s.activePolicies.has("border_control"),
     effect(s){ s.neighbors.find(n=>n.id==="FR").inf=Math.min(90,s.neighbors.find(n=>n.id==="FR").inf+20);
@@ -391,23 +406,25 @@ function tick() {
     ecoMod    += p.effects.economy       || 0;
     hapMod    += p.effects.happiness     || 0;
     if (p.effects.vaccineProgress)
-      state.vaccineProgress = Math.min(100, state.vaccineProgress + 1.4);
+      state.vaccineProgress = Math.min(100, state.vaccineProgress + 1.8);
   }
 
   spreadMod += -(state.vaccineProgress / 100) * 0.20;
-  const costlyActive = ["lockdown","border_control","vaccine","school_close"]
-    .some(id => state.activePolicies.has(id));
-  // Glück steigt etwas wenn Infektionen niedrig sind
+  // Grenzen und Lockdown sind costly (blockieren Extra-Eco-Erholung)
+  const costlyActive = ["lockdown","border_control"].some(id => state.activePolicies.has(id));
+  // Glück steigt wenn Infektionen niedrig, sinkt wenn hoch
   if (state.infected < 20) hapMod += 0.015;
   if (state.infected > 50) hapMod -= 0.03;
-
-  // Immer eine kleine passive Wirtschaftserholung (auch mit Maßnahmen)
+  // Passive Wirtschaftserholung: immer etwas, extra wenn keine teuren Maßnahmen
   ecoMod += 0.010;
-  // Extra Erholung ohne kostenintensive Maßnahmen
   if (!costlyActive) ecoMod += 0.012;
 
-  const netSpread = Math.max(0.002, state.baseSpread + spreadMod);
-  // Scaling: 0.06 für Eco/Hap statt 0.28 — sonst crashed Economy bei vernünftigen Maßnahmen in <30 Tagen
+  // Lockdown oder vollständiger Impfschutz erlauben tieferen Spread-Floor
+  const lockdownActive  = state.activePolicies.has("lockdown");
+  const vaccineComplete = state.vaccineProgress >= 100;
+  const spreadFloor     = (lockdownActive || vaccineComplete) ? FLOOR_LOW : FLOOR_NORMAL;
+
+  const netSpread = Math.max(spreadFloor, state.baseSpread + spreadMod);
   state.infected  = clamp(state.infected  + (netSpread * 100 * 0.14) + (neighborPressure * 100), 0, 100);
   state.economy   = clamp(state.economy   + ecoMod * 100 * 0.06, 0, 100);
   state.happiness = clamp(state.happiness + hapMod * 100 * 0.08, 0, 100);
